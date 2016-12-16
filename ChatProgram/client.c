@@ -9,6 +9,7 @@
 #include <pthread.h>
 
 #define BUF_SIZE 256
+#define SERVADDR_LEN 100
 int nClose;
 char username[256] = { 0 };
 
@@ -37,7 +38,7 @@ void * receiveMessage(void * socket) {
             wasMe = 1;
         }
         if (ret > 0) {
-            printf("<%s> %s<you> ", send_user, buffer);
+            printf("\n<%s> %s<you> ", send_user, buffer);
             fflush(stdout);
         }
         memset(buffer, 0, BUF_SIZE);
@@ -56,7 +57,7 @@ int main(int argc, char *argv[])
     pthread_t rThread;
     struct sockaddr_in serv_addr;
     struct hostent *server;
-	char user[BUF_SIZE];
+	char user[BUF_SIZE], servAddr[SERVADDR_LEN];
     nClose = 1;
 
     char buffer[256];
@@ -86,6 +87,8 @@ int main(int argc, char *argv[])
     serv_addr.sin_port = htons(portno);
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         error("ERROR connecting");
+    inet_ntop(AF_INET, &(serv_addr.sin_addr), servAddr, SERVADDR_LEN);
+    printf("Connecting to %s...\n", servAddr);
     
     //creating a new thread for receiving messages from the client
     if (ret = pthread_create(&rThread, NULL, receiveMessage, (void *) sockfd)) {

@@ -26,21 +26,26 @@ int nClose;
         int sockfd, ret;
         char buffer[BUF_SIZE];
         sockfd = (int) socket;
+        int wasMe = 0;
 
         memset(buffer, 0, BUF_SIZE);
-        while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0) {
-            if (strcmp(buffer,"exit\n") == 0)
+        while (nClose) {
+            ret = read(sockfd, buffer, BUF_SIZE);
+            if (strcmp(buffer,"exit\n") == 0) {
                 nClose = 0;
-            printf("client: %s", buffer);
+                wasMe = 1;
+            }
+            if (ret > 0)
+                printf("client: %s", buffer);
             memset(buffer, 0, BUF_SIZE);
         }
         if (ret < 0)
             printf("Error receiving data!\n");
-        else
-            printf("Client ended the chat. Press enter to exit\n");
+        if (wasMe)
+            printf("Chat ended. Press enter to exit\n");
         close(sockfd);
     }
-
+    
     int main(int argc, char *argv[])
     {
         int sockfd, newsockfd, portno, clilen;

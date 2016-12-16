@@ -22,21 +22,22 @@ void * receiveMessage(void * socket) {
     int sockfd, ret;
     char buffer[BUF_SIZE];
     sockfd = (int) socket;
+    int wasMe = 0;
 
     memset(buffer, 0, BUF_SIZE);
-//      if (write(sockfd,"I'm waiting for message",23) < 0)
-//          error("ERROR writing to socket");
-
-    while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0) {
-        if (strcmp(buffer,"exit\n") == 0)
+    while (nClose) {
+        ret = read(sockfd, buffer, BUF_SIZE);
+        if (strcmp(buffer,"exit\n") == 0) {
             nClose = 0;
+            wasMe = 1;
+        }
         printf("server: %s", buffer);
         memset(buffer, 0, BUF_SIZE);
     }
     if (ret < 0) 
         printf("Error receiving data!\n");
-    else
-        printf("Server ended the chat. Press enter to exit\n");
+    if (wasMe)
+        printf("Chat ended. Press enter to exit\n");
     close(sockfd);
 
 }
@@ -86,19 +87,17 @@ int main(int argc, char *argv[])
     while(nClose){
         bzero(buffer,256);
         fgets(buffer,255,stdin);
-        n = write(sockfd,buffer,strlen(buffer));
-		if (strcmp(buffer,"exit\n") == 0)
-			nClose = 0;
-        if (n < 0) {
-            error("ERROR writing to socket");
-            break;
+        if (nClose) {
+            n = write(sockfd,buffer,strlen(buffer));
+            if (strcmp(buffer,"exit\n") == 0)
+                nClose = 0;
+            if (n < 0) {
+                error("ERROR writing to socket");
+                break;
+            }
         }
     }
-//     bzero(buffer,256);
-//     n = read(sockfd,buffer,255);
-//     if (n < 0) 
-//          error("ERROR reading from socket");
-//     printf("%s\n",buffer);
+
     close(sockfd);
     return 0;
 }

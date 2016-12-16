@@ -6,6 +6,9 @@ LDFLAGS = -lpthread
 
 all: server client
 
+debug: CFLAGS += -g
+debug: all
+
 server:
 	$(CC) $(CFLAGS) -o $@ $@.c $(LDFLAGS)
 	

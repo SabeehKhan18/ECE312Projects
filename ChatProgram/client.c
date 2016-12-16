@@ -9,7 +9,8 @@
 #include <pthread.h>
 
 #define BUF_SIZE 256
-int nClose = 1;
+int nClose;
+char username[256] = { 0 };
 
 void error(const char *msg)
 {
@@ -26,17 +27,16 @@ void * receiveMessage(void * socket) {
 //      if (write(sockfd,"I'm waiting for message",23) < 0)
 //          error("ERROR writing to socket");
 
-    while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0 && nClose) {
-		if (strcmp(buffer,"exit\n") == 0) {
-			nClose = 0;
-		}
+    while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0) {
+        if (strcmp(buffer,"exit\n") == 0)
+            nClose = 0;
         printf("server: %s", buffer);
         memset(buffer, 0, BUF_SIZE);
     }
     if (ret < 0) 
         printf("Error receiving data!\n");
     else
-        printf("Closing connection\n");
+        printf("Server ended the chat. Press enter to exit\n");
     close(sockfd);
 
 }
@@ -47,6 +47,7 @@ int main(int argc, char *argv[])
     pthread_t rThread;
     struct sockaddr_in serv_addr;
     struct hostent *server;
+    nClose = 1;
 
     char buffer[256];
     if (argc < 3) {
@@ -69,7 +70,12 @@ int main(int argc, char *argv[])
          server->h_length);
     serv_addr.sin_port = htons(portno);
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-        error("ERROR connecting"); 
+        error("ERROR connecting");
+    
+    printf("Please enter a username: ");
+    fgets(username,255,stdin);
+    
+    n = write(sockfd,username,strlen(username));
     
     //creating a new thread for receiving messages from the client
     if (ret = pthread_create(&rThread, NULL, receiveMessage, (void *) sockfd)) {

@@ -14,7 +14,7 @@
 #define PORT 4567
 #define BUF_SIZE 256
 #define CLADDR_LEN 100
-int nClose = 1;
+int nClose;
 
     void error(char *msg)
     {
@@ -28,19 +28,16 @@ int nClose = 1;
         sockfd = (int) socket;
 
         memset(buffer, 0, BUF_SIZE);
-//         if (write(sockfd,"I'm waiting for message",23) < 0)
-//             error("ERROR writing to socket");
-
         while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0) {
+            if (strcmp(buffer,"exit\n") == 0)
+                nClose = 0;
             printf("client: %s", buffer);
             memset(buffer, 0, BUF_SIZE);
-			if (strcmp(buffer,"exit\n") == 0)
-						nClose = 0;
         }
-        if (ret < 0) 
+        if (ret < 0)
             printf("Error receiving data!\n");
         else
-            printf("Closing connection\n");
+            printf("Client ended the chat. Press enter to exit\n");
         close(sockfd);
     }
 
@@ -53,6 +50,7 @@ int nClose = 1;
         char clientAddr[CLADDR_LEN];
         pthread_t rThread;
         int ret, n;
+        nClose = 1;
 
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
         if (sockfd < 0) 
@@ -71,37 +69,28 @@ int nClose = 1;
         printf("Waiting for a connection...\n");
         listen(sockfd,5);
         clilen = sizeof(cli_addr);
-        while (newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen)) {
-            inet_ntop(AF_INET, &(cli_addr.sin_addr), clientAddr, CLADDR_LEN);
-            printf("Connection accepted from %s...\n", clientAddr);
+        newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+        inet_ntop(AF_INET, &(cli_addr.sin_addr), clientAddr, CLADDR_LEN);
+        printf("Connection accepted from %s...\n", clientAddr);
 
-            //creating a new thread for receiving messages from the client
-            if (ret = pthread_create(&rThread, NULL, receiveMessage, (void *) newsockfd)) {
-                printf("ERROR: Return Code from pthread_create() is %d\n", ret);
-                error("ERROR creating thread");
+        //creating a new thread for receiving messages from the client
+        if (ret = pthread_create(&rThread, NULL, receiveMessage, (void *) newsockfd)) {
+            printf("ERROR: Return Code from pthread_create() is %d\n", ret);
+            error("ERROR creating thread");
+        }
+
+        while(nClose){
+            bzero(buffer,256);
+            fgets(buffer,255,stdin);
+            if (nClose) {
+                n = write(newsockfd,buffer,strlen(buffer));	
+                if (n < 0) {
+                    error("ERROR writing to socket");
+                    break;
+                }
+                if (strcmp(buffer,"exit\n") == 0)
+                    nClose = 0;
             }
-            
-//             char writeBuffer[BUF_SIZE];
-//             do {
-//                 memset(writeBuffer, 0, BUF_SIZE);
-//                 fgets(buffer,255,stdin);
-//             } while (write(sockfd,writeBuffer,strlen(writeBuffer)) >= 0);
-
-            while(nClose){
-                bzero(buffer,256);
-                fgets(buffer,255,stdin);
-				
-				if (strcmp(buffer,"exit\n") == 0)
-						nClose = 0;
-				if (nClose) { 
-                	n = write(newsockfd,buffer,strlen(buffer));	
-                	if (n < 0) {
-						error("ERROR writing to socket");
-						break;
-                	}
-				}
-            }
-
         }
 
         if (newsockfd < 0) 

@@ -24,9 +24,14 @@ int nClose;
 
     void * receiveMessage(void * socket) {
         int sockfd, ret;
-        char buffer[BUF_SIZE];
+        char buffer[BUF_SIZE], send_user[BUF_SIZE];
         sockfd = (int) socket;
         int wasMe = 0;
+
+		memset(send_user, 0, BUF_SIZE);
+		ret = read(sockfd, send_user, BUF_SIZE);
+		if (ret < 0)
+			printf("Error receiving data!\n");
 
         memset(buffer, 0, BUF_SIZE);
         while (nClose) {
@@ -36,7 +41,7 @@ int nClose;
                 wasMe = 1;
             }
             if (ret > 0)
-                printf("client: %s", buffer);
+                printf("%s: %s", send_user, buffer);
             memset(buffer, 0, BUF_SIZE);
         }
         if (ret < 0)
@@ -49,13 +54,17 @@ int nClose;
     int main(int argc, char *argv[])
     {
         int sockfd, newsockfd, portno, clilen;
-        char buffer[BUF_SIZE];
+        char buffer[BUF_SIZE], user[BUF_SIZE];
         struct sockaddr_in serv_addr, cli_addr;
         pid_t childpid;
         char clientAddr[CLADDR_LEN];
         pthread_t rThread;
         int ret, n;
         nClose = 1;
+
+		printf("Enter username: ");
+		fgets(user,255,stdin);
+		strtok(user,"\n");
 
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
         if (sockfd < 0) 
@@ -83,6 +92,10 @@ int nClose;
             printf("ERROR: Return Code from pthread_create() is %d\n", ret);
             error("ERROR creating thread");
         }
+		 n = write(newsockfd,user,strlen(user));	
+         if (n < 0) {
+             error("ERROR writing to socket");
+         }
 
         while(nClose){
             bzero(buffer,256);

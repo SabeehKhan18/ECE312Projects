@@ -20,9 +20,14 @@ void error(const char *msg)
 
 void * receiveMessage(void * socket) {
     int sockfd, ret;
-    char buffer[BUF_SIZE];
+    char buffer[BUF_SIZE],send_user[BUF_SIZE];
     sockfd = (int) socket;
-    int wasMe = 0;
+    int wasMe = 0;                   
+
+	memset(send_user, 0, BUF_SIZE);
+	ret = read(sockfd, send_user, BUF_SIZE);
+	if (ret < 0)
+		printf("Error receiving data!\n");
 
     memset(buffer, 0, BUF_SIZE);
     while (nClose) {
@@ -31,7 +36,7 @@ void * receiveMessage(void * socket) {
             nClose = 0;
             wasMe = 1;
         }
-        printf("server: %s", buffer);
+        printf("%s: %s", send_user, buffer);
         memset(buffer, 0, BUF_SIZE);
     }
     if (ret < 0) 
@@ -48,6 +53,7 @@ int main(int argc, char *argv[])
     pthread_t rThread;
     struct sockaddr_in serv_addr;
     struct hostent *server;
+	char user[BUF_SIZE];
     nClose = 1;
 
     char buffer[256];
@@ -55,6 +61,11 @@ int main(int argc, char *argv[])
        fprintf(stderr,"usage %s hostname port\n", argv[0]);
        exit(0);
     }
+	
+	printf("Enter username: ");
+	fgets(user,255,stdin);
+	strtok(user,"\n");
+
     portno = atoi(argv[2]);
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) 
@@ -73,17 +84,17 @@ int main(int argc, char *argv[])
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         error("ERROR connecting");
     
-    printf("Please enter a username: ");
-    fgets(username,255,stdin);
-    
-    n = write(sockfd,username,strlen(username));
     
     //creating a new thread for receiving messages from the client
     if (ret = pthread_create(&rThread, NULL, receiveMessage, (void *) sockfd)) {
         printf("ERROR: Return Code from pthread_create() is %d\n", ret);
         error("ERROR creating thread");
     }
-    
+    n = write(sockfd,user,strlen(user));
+	if (n < 0) {
+		error("ERROR writing to socket");
+	}
+
     while(nClose){
         bzero(buffer,256);
         fgets(buffer,255,stdin);

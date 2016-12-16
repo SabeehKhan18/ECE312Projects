@@ -9,6 +9,7 @@
 #include <pthread.h>
 
 #define BUF_SIZE 256
+int nClose = 1;
 
 void error(const char *msg)
 {
@@ -25,7 +26,10 @@ void * receiveMessage(void * socket) {
 //      if (write(sockfd,"I'm waiting for message",23) < 0)
 //          error("ERROR writing to socket");
 
-    while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0) {
+    while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0 && nClose) {
+		if (strcmp(buffer,"exit\n") == 0) {
+			nClose = 0;
+		}
         printf("server: %s", buffer);
         memset(buffer, 0, BUF_SIZE);
     }
@@ -34,6 +38,7 @@ void * receiveMessage(void * socket) {
     else
         printf("Closing connection\n");
     close(sockfd);
+
 }
 
 int main(int argc, char *argv[])
@@ -64,14 +69,7 @@ int main(int argc, char *argv[])
          server->h_length);
     serv_addr.sin_port = htons(portno);
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-        error("ERROR connecting");
-    
-//     printf("Please enter the message: ");
-//     n = read(sockfd, buffer, 255);
-//     if (n < 0) {
-//         printf("Error reading from socket\n");
-//     }
-//     printf("%s\n", buffer);
+        error("ERROR connecting"); 
     
     //creating a new thread for receiving messages from the client
     if (ret = pthread_create(&rThread, NULL, receiveMessage, (void *) sockfd)) {
@@ -79,10 +77,12 @@ int main(int argc, char *argv[])
         error("ERROR creating thread");
     }
     
-    while(1){
+    while(nClose){
         bzero(buffer,256);
         fgets(buffer,255,stdin);
         n = write(sockfd,buffer,strlen(buffer));
+		if (strcmp(buffer,"exit\n") == 0)
+			nClose = 0;
         if (n < 0) {
             error("ERROR writing to socket");
             break;

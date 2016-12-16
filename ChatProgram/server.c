@@ -14,6 +14,7 @@
 #define PORT 4567
 #define BUF_SIZE 256
 #define CLADDR_LEN 100
+int nClose = 1;
 
     void error(char *msg)
     {
@@ -33,6 +34,8 @@
         while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0) {
             printf("client: %s", buffer);
             memset(buffer, 0, BUF_SIZE);
+			if (strcmp(buffer,"exit\n") == 0)
+						nClose = 0;
         }
         if (ret < 0) 
             printf("Error receiving data!\n");
@@ -84,14 +87,19 @@
 //                 fgets(buffer,255,stdin);
 //             } while (write(sockfd,writeBuffer,strlen(writeBuffer)) >= 0);
 
-            while(1){
+            while(nClose){
                 bzero(buffer,256);
                 fgets(buffer,255,stdin);
-                n = write(newsockfd,buffer,strlen(buffer));
-                if (n < 0) {
-                    error("ERROR writing to socket");
-                    break;
-                }
+				
+				if (strcmp(buffer,"exit\n") == 0)
+						nClose = 0;
+				if (nClose) { 
+                	n = write(newsockfd,buffer,strlen(buffer));	
+                	if (n < 0) {
+						error("ERROR writing to socket");
+						break;
+                	}
+				}
             }
 
         }

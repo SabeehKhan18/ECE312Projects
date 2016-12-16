@@ -36,7 +36,7 @@ void * receiveMessage(void * socket) {
             nClose = 0;
             wasMe = 1;
         }
-        printf("%s: %s", send_user, buffer);
+        printf("\n<%s> %s\n<you> ", send_user, buffer);
         memset(buffer, 0, BUF_SIZE);
     }
     if (ret < 0) 
@@ -97,6 +97,7 @@ int main(int argc, char *argv[])
 
     while(nClose){
         bzero(buffer,256);
+		printf("<you> ");
         fgets(buffer,255,stdin);
         if (nClose) {
             n = write(sockfd,buffer,strlen(buffer));

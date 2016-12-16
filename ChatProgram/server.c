@@ -41,7 +41,7 @@ int nClose;
                 wasMe = 1;
             }
             if (ret > 0)
-                printf("%s: %s", send_user, buffer);
+                printf("<%s> %s", send_user, buffer);
             memset(buffer, 0, BUF_SIZE);
         }
         if (ret < 0)
@@ -99,6 +99,7 @@ int nClose;
 
         while(nClose){
             bzero(buffer,256);
+			printf("<you> ");
             fgets(buffer,255,stdin);
             if (nClose) {
                 n = write(newsockfd,buffer,strlen(buffer));	

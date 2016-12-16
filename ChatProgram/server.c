@@ -40,8 +40,10 @@ int nClose;
                 nClose = 0;
                 wasMe = 1;
             }
-            if (ret > 0)
-                printf("<%s> %s", send_user, buffer);
+            if (ret > 0) {
+                printf("<%s> %s<you> ", send_user, buffer);
+                fflush(stdout);
+            }
             memset(buffer, 0, BUF_SIZE);
         }
         if (ret < 0)

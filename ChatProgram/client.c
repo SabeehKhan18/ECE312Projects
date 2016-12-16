@@ -36,7 +36,10 @@ void * receiveMessage(void * socket) {
             nClose = 0;
             wasMe = 1;
         }
-        printf("\n<%s> %s\n<you> ", send_user, buffer);
+        if (ret > 0) {
+            printf("<%s> %s<you> ", send_user, buffer);
+            fflush(stdout);
+        }
         memset(buffer, 0, BUF_SIZE);
     }
     if (ret < 0) 
@@ -84,7 +87,6 @@ int main(int argc, char *argv[])
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         error("ERROR connecting");
     
-    
     //creating a new thread for receiving messages from the client
     if (ret = pthread_create(&rThread, NULL, receiveMessage, (void *) sockfd)) {
         printf("ERROR: Return Code from pthread_create() is %d\n", ret);
@@ -97,7 +99,7 @@ int main(int argc, char *argv[])
 
     while(nClose){
         bzero(buffer,256);
-		printf("<you> ");
+        printf("<you> ");
         fgets(buffer,255,stdin);
         if (nClose) {
             n = write(sockfd,buffer,strlen(buffer));

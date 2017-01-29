@@ -10,6 +10,8 @@
 #define PORT 1874
 #define BUFSIZE 1024
 
+int clientSocket;
+
 uint16_t getChecksum(char* data, int numBytes) {
     uint16_t* checkPtr = data;
     uint32_t sum = 0;
@@ -24,8 +26,48 @@ uint16_t getChecksum(char* data, int numBytes) {
     return (0xFFFF - (uint16_t)sum);
 }
 
+int recvRHP() {
+    char buffer[BUFSIZE];
+    int nBytes, pad;
+    uint8_t* bufPtr;
+    
+    memset(buffer, 0, BUFSIZE);
+    
+    /* Receive message from server */
+    nBytes = recvfrom(clientSocket, buffer, BUFSIZE, 0, NULL, NULL);
+    
+    uint16_t recvChecksum = *((uint16_t*)(buffer+nBytes-2));
+    uint16_t calcChecksum = getChecksum(buffer, nBytes-2);
+    
+    if (recvChecksum != calcChecksum)
+        return 1;
+    
+    bufPtr = buffer;
+    printf("type: %d\n", *bufPtr);
+    
+    bufPtr++;
+    printf("length: %d\n", *((uint16_t*)bufPtr));
+    
+    pad = 0;
+    if (*((uint16_t*)bufPtr) % 2 == 0) {
+        pad = 1;
+        printf("adding pad on received data\n");
+    }
+    
+    bufPtr+=2;
+    printf("srcPort: %d\n", *((uint16_t*)bufPtr));
+    
+    bufPtr += 2;
+    printf("Received from server: %d, %s\n", nBytes, bufPtr);
+    
+    bufPtr+=strlen(bufPtr)+1+pad;
+    printf("checksum: 0x%04x\n", *((uint16_t*)bufPtr));
+    
+    return 0;
+}
+
 int main() {
-    int clientSocket, nBytes, pad, includePad;
+    int nBytes, pad, includePad, result;
     char buffer[BUFSIZE] = {0};
     struct sockaddr_in clientAddr, serverAddr;
 
@@ -46,7 +88,7 @@ int main() {
     bufPtr++;
     
     // re-cast pointer to be 16 bits for dstPort/length
-    // length of message since we are doing a control message
+    // length of message since we are doing a control message (+1 for null terminator)
     uint16_t length = strlen(MESSAGE)+1;
     memcpy(bufPtr, &length, sizeof(length));
     bufPtr+=2;
@@ -102,30 +144,9 @@ int main() {
         return 0;
     }
 
-    /* Receive message from server */
-    nBytes = recvfrom(clientSocket, buffer, BUFSIZE, 0, NULL, NULL);
-    
-    bufPtr = buffer;
-    printf("type: %d\n", *bufPtr);
-    
-    bufPtr++;
-    printf("length: %d\n", *((uint16_t*)bufPtr));
-    if (*((uint16_t*)bufPtr) % 2 == 0) {
-        pad = 1;
-        printf("adding pad on received data\n");
-    }
-    
-    bufPtr+=2;
-    printf("srcPort: %d\n", *((uint16_t*)bufPtr));
-    
-    bufPtr += 2;
-    printf("Received from server: %d, %s\n", nBytes, bufPtr);
-    
-    bufPtr+=strlen(bufPtr)+1+pad;
-    printf("checksum: 0x%04x\n", *((uint16_t*)bufPtr));
-    
-    uint16_t recvChecksum = getChecksum(buffer, nBytes-2);
-    printf("calculated checksum on received data: 0x%04x\n", recvChecksum);
+    result = recvRHP();
+    if (result != 0)
+        printf("CHECKSUM MISMATCH\n");
 
     close(clientSocket);
     return 0;

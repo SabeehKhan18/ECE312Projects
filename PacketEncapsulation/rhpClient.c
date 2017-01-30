@@ -13,7 +13,7 @@
 int clientSocket;
 
 uint16_t getChecksum(char* data, int numBytes) {
-    uint16_t* checkPtr = data;
+    uint16_t* checkPtr = (uint16_t*) data;
     uint32_t sum = 0;
     for (int i = 0; i < numBytes/2; i++) {
         sum += *checkPtr;

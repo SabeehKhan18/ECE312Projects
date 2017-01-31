@@ -2,15 +2,14 @@
 
 #include <stdio.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <string.h>
+#include <unistd.h>
 
 #define SERVER "137.112.38.47"
 #define MESSAGE "hello"
 #define PORT 1874
 #define BUFSIZE 1024
-
-int clientSocket;
 
 uint16_t getChecksum(char* data, int numBytes) {
     uint16_t* checkPtr = (uint16_t*) data;
@@ -26,7 +25,7 @@ uint16_t getChecksum(char* data, int numBytes) {
     return (0xFFFF - (uint16_t)sum);
 }
 
-int recvRHP() {
+int recvRHP(int socket) {
     char buffer[BUFSIZE];
     int nBytes, pad;
     uint8_t* bufPtr;
@@ -34,7 +33,7 @@ int recvRHP() {
     memset(buffer, 0, BUFSIZE);
     
     /* Receive message from server */
-    nBytes = recvfrom(clientSocket, buffer, BUFSIZE, 0, NULL, NULL);
+    nBytes = recvfrom(socket, buffer, BUFSIZE, 0, NULL, NULL);
     
     uint16_t recvChecksum = *((uint16_t*)(buffer+nBytes-2));
     uint16_t calcChecksum = getChecksum(buffer, nBytes-2);
@@ -67,7 +66,7 @@ int recvRHP() {
 }
 
 int main() {
-    int nBytes, pad, includePad, result;
+    int clientSocket, includePad, result;
     char buffer[BUFSIZE] = {0};
     struct sockaddr_in clientAddr, serverAddr;
 
@@ -144,7 +143,7 @@ int main() {
         return 0;
     }
 
-    result = recvRHP();
+    result = recvRHP(clientSocket);
     if (result != 0)
         printf("CHECKSUM MISMATCH\n");
 

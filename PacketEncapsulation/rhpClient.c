@@ -41,7 +41,7 @@ int recvRHP(int socket) {
     if (recvChecksum != calcChecksum)
         return 1;
     
-    bufPtr = buffer;
+    bufPtr = (uint8_t*) buffer;
     printf("type: %d\n", *bufPtr);
     
     bufPtr++;
@@ -59,7 +59,7 @@ int recvRHP(int socket) {
     bufPtr += 2;
     printf("Received from server: %d, %s\n", nBytes, bufPtr);
     
-    bufPtr+=strlen(bufPtr)+1+pad;
+    bufPtr+=strlen((char*)bufPtr)+1+pad;
     printf("checksum: 0x%04x\n", *((uint16_t*)bufPtr));
     
     return 0;
@@ -80,7 +80,7 @@ int main() {
     memset(buffer, 0, BUFSIZE);
     
     // create pointer to step through each piece of data
-    uint8_t* bufPtr = buffer;
+    uint8_t* bufPtr = (uint8_t*) buffer;
     
     // message type (0 = RHMP, 1 = ASCII control message)
     *bufPtr = 1;

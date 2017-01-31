@@ -38,8 +38,10 @@ int recvRHP(int socket) {
     uint16_t recvChecksum = *((uint16_t*)(buffer+nBytes-2));
     uint16_t calcChecksum = getChecksum(buffer, nBytes-2);
     
-    if (recvChecksum != calcChecksum)
+    if (recvChecksum != calcChecksum) {
+        printf("CHECKSUM MISMATCH\n");
         return 1;
+    }
     
     bufPtr = (uint8_t*) buffer;
     printf("type: %d\n", *bufPtr);
@@ -61,6 +63,60 @@ int recvRHP(int socket) {
     
     bufPtr+=strlen((char*)bufPtr)+1+pad;
     printf("checksum: 0x%04x\n", *((uint16_t*)bufPtr));
+    
+    return 0;
+}
+
+int sendRHP(int socket, uint8_t type, char* toSend, uint32_t length) {
+    char buffer[BUFSIZE];
+    uint16_t dstPort_Length = 0;
+    int includePad = 0;
+    struct sockaddr_in serverAddr;
+    
+    memset(buffer, 0, BUFSIZE);
+    
+    uint8_t* bufPtr = (uint8_t*) buffer;
+    
+    *bufPtr = type;
+    bufPtr++;
+    
+    if (type == 0) {
+        dstPort_Length = 105;
+    } else {
+        dstPort_Length = length;
+    }
+    memcpy(bufPtr, &dstPort_Length, 2);
+    bufPtr += 2;
+    
+    uint16_t srcPort = 354;
+    memcpy(bufPtr, &srcPort, 2);
+    bufPtr+=2;
+    
+    memcpy(bufPtr, toSend, length);
+    bufPtr+=length;
+    
+    includePad = 0;
+    if (length % 2 == 0) {
+        includePad = 1;
+        bufPtr++;
+    }
+    
+    uint16_t checksum = getChecksum(buffer, 5+length+includePad);
+    memcpy(bufPtr, &checksum, sizeof(checksum));
+    
+    /* Configure settings in server address struct */
+    memset((char*) &serverAddr, 0, sizeof (serverAddr));
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(PORT);
+    serverAddr.sin_addr.s_addr = inet_addr(SERVER);
+    memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
+    
+    /* send a message to the server */
+    if (sendto(socket, buffer, 7+length+includePad, 0,
+            (struct sockaddr *) &serverAddr, sizeof (serverAddr)) < 0) {
+        perror("sendto failed");
+        return 1;
+    }
     
     return 0;
 }
@@ -144,8 +200,20 @@ int main() {
     }
 
     result = recvRHP(clientSocket);
-    if (result != 0)
-        printf("CHECKSUM MISMATCH\n");
+    
+    result = sendRHP(clientSocket, 1, "hello\0", 6);
+    result = recvRHP(clientSocket);
+    
+    memset(buffer, 0, BUFSIZE);
+    bufPtr = (uint8_t*) buffer;
+    
+    uint32_t data = 8;
+    data = data | (312 << 6);
+    memcpy(buffer, &data, 3);
+    
+    do {
+        result = sendRHP(clientSocket, 0, buffer, 3);
+    } while ((result = recvRHP(clientSocket)) != 0);
 
     close(clientSocket);
     return 0;

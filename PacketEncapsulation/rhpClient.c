@@ -27,7 +27,7 @@ uint16_t getChecksum(char* data, int numBytes) {
 
 int recvRHP(int socket) {
     char buffer[BUFSIZE];
-    int nBytes, pad;
+    int nBytes, pad = 0;
     uint8_t* bufPtr;
     uint8_t type, rhmpLength;
     
@@ -54,7 +54,6 @@ int recvRHP(int socket) {
     else
         printf("dstPort: %d\n", *((uint16_t*)bufPtr));
     
-    pad = 0;
     if (type == 1) {
         if (*((uint16_t*)bufPtr) % 2 == 0) {
             pad = 1;
@@ -74,10 +73,10 @@ int recvRHP(int socket) {
     bufPtr += 2;
     uint16_t rhmpTypeCommID;
     memcpy(&rhmpTypeCommID, bufPtr, 2);
-    uint8_t rhmpType = (rhmpTypeCommID & 0xFC00) >> 10;
+    uint8_t rhmpType = (rhmpTypeCommID & 0x003F);
     printf("RHMP Type: %d\n", rhmpType);
     
-    uint16_t commID = rhmpTypeCommID & 0x03FF;
+    uint16_t commID = (rhmpTypeCommID & 0xFFC0) >> 6;
     printf("RHMP Comm ID: %d\n", commID);
     bufPtr+=2;
     
@@ -85,9 +84,20 @@ int recvRHP(int socket) {
     bufPtr++;
     
     if (rhmpType == 1) {
-        
+	} else if (rhmpType == 2) {
+
+	} else if (rhmpType == 4) {
+		uint32_t num = *((uint32_t*)bufPtr);
+		printf("32-bit unsigned integer identifier: %d\n",num);
+		bufPtr+=4;
+	} else if (rhmpType == 8) {
+
+	} else {
+		printf("Message response: %s\n",bufPtr);
+		bufPtr += rhmpLength;
+	}
+	bufPtr += pad;
     
-//     bufPtr+=strlen((char*)bufPtr)+1+pad;
     printf("checksum: 0x%04x\n", *((uint16_t*)bufPtr));
     
     return 0;
@@ -114,7 +124,7 @@ int sendRHP(int socket, uint8_t type, char* toSend, uint32_t length) {
     memcpy(bufPtr, &dstPort_Length, 2);
     bufPtr += 2;
     
-    uint16_t srcPort = 354;
+    uint16_t srcPort = 352;
     memcpy(bufPtr, &srcPort, 2);
     bufPtr+=2;
     
@@ -137,8 +147,9 @@ int sendRHP(int socket, uint8_t type, char* toSend, uint32_t length) {
     serverAddr.sin_addr.s_addr = inet_addr(SERVER);
     memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
     
-    /* send a message to the server */
-    if (sendto(socket, buffer, 7+length+includePad, 0,
+    
+	/* send a message to the server */ 
+	if (sendto(socket, buffer, 7+length+includePad, 0,
             (struct sockaddr *) &serverAddr, sizeof (serverAddr)) < 0) {
         perror("sendto failed");
         return 1;
@@ -174,20 +185,33 @@ int main() {
         perror("bind failed");
         return 0;
     }
-    
-    result = sendRHP(clientSocket, 1, "hello\0", 6);
-    result = recvRHP(clientSocket);
+
+	// send RHP with hello
+   	do { 
+    	result = sendRHP(clientSocket, 1, "hello\0", 6);
+	} while ((result = recvRHP(clientSocket)) != 0);
     
     memset(buffer, 0, BUFSIZE);
     
     uint32_t data = 8;
     data = data | (312 << 6);
     memcpy(buffer, &data, 3);
-    
+	
+	// send RHMP with message request	
     do {
         result = sendRHP(clientSocket, 0, buffer, 3);
     } while ((result = recvRHP(clientSocket)) != 0);
 
-    close(clientSocket);
+	data = 2;
+    data |= (312 << 6);	
+	memset(buffer, 0, BUFSIZE);
+	memcpy(buffer, &data, 3);
+
+	// send RHP with ID request
+	do {
+		sendRHP(clientSocket, 0, buffer, 3);
+	} while (recvRHP(clientSocket) != 0);
+
     return 0;
 }
+   

@@ -29,7 +29,8 @@ int recvRHP(int socket) {
     char buffer[BUFSIZE];
     int nBytes, pad = 0;
     uint8_t* bufPtr;
-    uint8_t type, rhmpLength;
+    uint8_t type, rhmpLength; 
+	uint16_t rhpLength;
     
     memset(buffer, 0, BUFSIZE);
     
@@ -49,8 +50,10 @@ int recvRHP(int socket) {
     type = *bufPtr;
     
     bufPtr++;
-    if (type == 1)
+    if (type == 1) {
+		rhpLength = *((uint16_t*)bufPtr);
         printf("length: %d\n", *((uint16_t*)bufPtr));
+	}
     else
         printf("dstPort: %d\n", *((uint16_t*)bufPtr));
     
@@ -71,30 +74,35 @@ int recvRHP(int socket) {
     printf("srcPort: %d\n", *((uint16_t*)bufPtr));
     
     bufPtr += 2;
-    uint16_t rhmpTypeCommID;
-    memcpy(&rhmpTypeCommID, bufPtr, 2);
-    uint8_t rhmpType = (rhmpTypeCommID & 0x003F);
-    printf("RHMP Type: %d\n", rhmpType);
-    
-    uint16_t commID = (rhmpTypeCommID & 0xFFC0) >> 6;
-    printf("RHMP Comm ID: %d\n", commID);
-    bufPtr+=2;
-    
-    printf("rhmp length: %d\n", rhmpLength);
-    bufPtr++;
-    
-    if (rhmpType == 1) {
-	} else if (rhmpType == 2) {
+	if (type == 0) {
+		uint16_t rhmpTypeCommID;
+		memcpy(&rhmpTypeCommID, bufPtr, 2);
+		uint8_t rhmpType = (rhmpTypeCommID & 0x003F);
+		printf("RHMP Type: %d\n", rhmpType);
+		
+		uint16_t commID = (rhmpTypeCommID & 0xFFC0) >> 6;
+		printf("RHMP Comm ID: %d\n", commID);
+		bufPtr+=2;
+		
+		printf("rhmp length: %d\n", rhmpLength);
+		bufPtr++;
+		
+		if (rhmpType == 1) {
+		} else if (rhmpType == 2) {
 
-	} else if (rhmpType == 4) {
-		uint32_t num = *((uint32_t*)bufPtr);
-		printf("32-bit unsigned integer identifier: %d\n",num);
-		bufPtr+=4;
-	} else if (rhmpType == 8) {
+		} else if (rhmpType == 4) {
+			uint32_t num = *((uint32_t*)bufPtr);
+			printf("32-bit unsigned integer identifier: %d\n",num);
+			bufPtr+=4;
+		} else if (rhmpType == 8) {
 
+		} else {
+			printf("Message response: %s\n",bufPtr);
+			bufPtr += rhmpLength;
+		}
 	} else {
-		printf("Message response: %s\n",bufPtr);
-		bufPtr += rhmpLength;
+		printf("Message response: %s\n", bufPtr);
+		bufPtr += rhpLength;		
 	}
 	bufPtr += pad;
     

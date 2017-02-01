@@ -122,51 +122,15 @@ int sendRHP(int socket, uint8_t type, char* toSend, uint32_t length) {
 }
 
 int main() {
-    int clientSocket, includePad, result;
+    int clientSocket, result;
     char buffer[BUFSIZE] = {0};
-    struct sockaddr_in clientAddr, serverAddr;
+    struct sockaddr_in clientAddr;
 
     /*Create UDP socket*/
     if ((clientSocket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("cannot create socket");
         return 0;
     }
-    
-    // clear out entire buffer
-    memset(buffer, 0, BUFSIZE);
-    
-    // create pointer to step through each piece of data
-    uint8_t* bufPtr = (uint8_t*) buffer;
-    
-    // message type (0 = RHMP, 1 = ASCII control message)
-    *bufPtr = 1;
-    bufPtr++;
-    
-    // re-cast pointer to be 16 bits for dstPort/length
-    // length of message since we are doing a control message (+1 for null terminator)
-    uint16_t length = strlen(MESSAGE)+1;
-    memcpy(bufPtr, &length, sizeof(length));
-    bufPtr+=2;
-    
-    // srcPort (CM number)
-    uint16_t srcPort = 354;
-    memcpy(bufPtr, &srcPort, sizeof(srcPort));
-    bufPtr+=2;
-    
-    // re-cast to a char for the string message
-    memcpy(bufPtr, &MESSAGE, strlen(MESSAGE));
-    // skip a byte in order to null-terminate the string
-    bufPtr += strlen(MESSAGE)+1;
-    
-    // set pad to 0 for default
-    includePad = 0;
-    if (strlen(MESSAGE) % 2 != 0) {
-        includePad = 1;
-        bufPtr++;
-    }
-    
-    uint16_t checksum = getChecksum(buffer, strlen(MESSAGE)+6+includePad);
-    memcpy(bufPtr, &checksum, sizeof(checksum));
     
     /* Bind to an arbitrary return address.
      * Because this is the client side, we don't care about the address 
@@ -184,28 +148,11 @@ int main() {
         perror("bind failed");
         return 0;
     }
-
-    /* Configure settings in server address struct */
-    memset((char*) &serverAddr, 0, sizeof (serverAddr));
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(PORT);
-    serverAddr.sin_addr.s_addr = inet_addr(SERVER);
-    memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
-
-    /* send a message to the server */
-    if (sendto(clientSocket, buffer, strlen(MESSAGE)+includePad+8, 0,
-            (struct sockaddr *) &serverAddr, sizeof (serverAddr)) < 0) {
-        perror("sendto failed");
-        return 0;
-    }
-
-    result = recvRHP(clientSocket);
     
     result = sendRHP(clientSocket, 1, "hello\0", 6);
     result = recvRHP(clientSocket);
     
     memset(buffer, 0, BUFSIZE);
-    bufPtr = (uint8_t*) buffer;
     
     uint32_t data = 8;
     data = data | (312 << 6);

@@ -29,6 +29,7 @@ int recvRHP(int socket) {
     char buffer[BUFSIZE];
     int nBytes, pad;
     uint8_t* bufPtr;
+    uint8_t type, rhmpLength;
     
     memset(buffer, 0, BUFSIZE);
     
@@ -45,23 +46,48 @@ int recvRHP(int socket) {
     
     bufPtr = (uint8_t*) buffer;
     printf("type: %d\n", *bufPtr);
+    type = *bufPtr;
     
     bufPtr++;
-    printf("length: %d\n", *((uint16_t*)bufPtr));
+    if (type == 1)
+        printf("length: %d\n", *((uint16_t*)bufPtr));
+    else
+        printf("dstPort: %d\n", *((uint16_t*)bufPtr));
     
     pad = 0;
-    if (*((uint16_t*)bufPtr) % 2 == 0) {
-        pad = 1;
-        printf("adding pad on received data\n");
+    if (type == 1) {
+        if (*((uint16_t*)bufPtr) % 2 == 0) {
+            pad = 1;
+            printf("adding buffer on received data\n");
+        }
+    } else {
+        bufPtr+=6;
+        rhmpLength = *bufPtr;
+        if (rhmpLength % 2 != 0)
+            pad = 1;
+        bufPtr-=6;
     }
     
     bufPtr+=2;
     printf("srcPort: %d\n", *((uint16_t*)bufPtr));
     
     bufPtr += 2;
-    printf("Received from server: %d, %s\n", nBytes, bufPtr);
+    uint16_t rhmpTypeCommID;
+    memcpy(&rhmpTypeCommID, bufPtr, 2);
+    uint8_t rhmpType = (rhmpTypeCommID & 0xFC00) >> 10;
+    printf("RHMP Type: %d\n", rhmpType);
     
-    bufPtr+=strlen((char*)bufPtr)+1+pad;
+    uint16_t commID = rhmpTypeCommID & 0x03FF;
+    printf("RHMP Comm ID: %d\n", commID);
+    bufPtr+=2;
+    
+    printf("rhmp length: %d\n", rhmpLength);
+    bufPtr++;
+    
+    if (rhmpType == 1) {
+        
+    
+//     bufPtr+=strlen((char*)bufPtr)+1+pad;
     printf("checksum: 0x%04x\n", *((uint16_t*)bufPtr));
     
     return 0;
